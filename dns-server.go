@@ -2,13 +2,22 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"net"
+	"os"
+	"regexp"
 )
 
 // <domain-name> is a domain name represented as a series of labels, and
 // terminated by a label with zero length.
 
 func main() {
+	multiWriter := io.MultiWriter(os.Stdout)
+	log.SetPrefix("[info]: ")
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmsgprefix)
+	log.New(multiWriter, log.Prefix(), log.Flags())
+
 	address, _ := net.ResolveUDPAddr("udp", "localhost:53")
 
 	in_conn, err := net.ListenUDP("udp", address)
@@ -35,7 +44,12 @@ func main() {
 		var response [512]byte
 
 		out_conn.ReadMsgUDP(response[:], nil)
-		fmt.Println(retrieve_domain(response[12:]))
+		domain := retrieve_domain(response[12:])
+		log.Println(domain)
+		toSkip, _ := regexp.MatchString(".*youtube.*", domain)
+		if toSkip {
+			continue
+		}
 		in_conn.WriteMsgUDP(response[:], nil, addr)
 	}
 }
